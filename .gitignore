@@ -1,7 +1,6 @@
 *.class
 *.log
 /.idea
-project/
 target/
 /tmp/*
 !/tmp/.keep
