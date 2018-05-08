@@ -3,3 +3,5 @@
 /.idea
 project/
 target/
+/tmp/
+!/tmp/.keep
