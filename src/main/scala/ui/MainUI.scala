@@ -7,12 +7,40 @@ import java.io.{File, FileOutputStream}
 import internal.ToolCall
 import javax.swing.TransferHandler.TransferSupport
 import javax.swing.{JTextPane, TransferHandler}
+import util.ArgParser.ArgNameItem
+import util.{ArgParser, IOUtils}
 
 import scala.io.Source
 import scala.swing.event._
 import scala.swing.{Component, Dimension, Frame, MainFrame, Menu, MenuBar, Orientation, SimpleSwingApplication, SplitPane, TextPane}
 
 object MainUI extends SimpleSwingApplication{
+
+  val argNameTempDir = ArgParser.ArgNameItem("--temp-dir","-t","")
+  val argNameWindiff = ArgParser.ArgNameItem("--win-merge","-w","")
+  val argNameEncoding = ArgParser.ArgNameItem("--source-encoding","-e","")
+
+  import ArgParser._
+
+  var args:Args = null
+
+
+  override def startup(params: Array[String]): Unit = {
+
+    this.args = new ArgParser(Seq(
+      argNameTempDir
+      ,argNameEncoding
+      ,argNameWindiff
+    )).parse(params)
+
+    super.startup(params)
+    /*
+    val t = top
+    if (t.size == new Dimension(0,0)) t.pack()
+    t.visible = true
+    */
+  }
+
 
   class MyTransferHandler extends TransferHandler{
 
@@ -47,9 +75,9 @@ object MainUI extends SimpleSwingApplication{
 
           val list = any.asInstanceOf[java.util.List[File]].asScala
 
+          val enc = args.getValueOrElse(argNameEncoding,"utf-8")
 
-
-          support.getComponent().asInstanceOf[JTextPane].setText(Source.fromFile(list(0),"utf8").getLines().mkString("\n"))
+          support.getComponent().asInstanceOf[JTextPane].setText(Source.fromFile(list(0),enc).getLines().mkString("\n"))
 
 
           //println(s"${any.getClass.getName}/${any}")
@@ -69,38 +97,39 @@ object MainUI extends SimpleSwingApplication{
   }
 
 
+
+
+
+
+
   override def top: Frame = new MainFrame{
 
     title = "ファイル比較ツール"
-    minimumSize = new Dimension(300,200)
+    minimumSize = new Dimension(400,200)
 
     menuBar = new MenuBar{
-      val menu = new Menu("windiff"){
-        listenTo(mouse.clicks)
-        reactions += {
-          case e: MouseClicked =>
+      args.getValue(argNameWindiff).foreach{windiffPath=>
+        val menu = new Menu("winmerge"){
+          listenTo(mouse.clicks)
+          reactions += {
+            case e: MouseClicked =>
 
-            val leftData = leftTextPane.getText
-            val rightData = rightTextPane.getText
+              val leftData = leftTextPane.getText
+              val rightData = rightTextPane.getText
 
-            val tmp = "./tmp"
-            val leftFile = "left"
-            val rightFile = "right"
+              val tmpDir = args(argNameTempDir)
 
-            val f1 = new FileOutputStream(s"${tmp}/${leftFile}")
-            f1.write(leftData.getBytes("utf-8"))
-            val f2 = new FileOutputStream(s"${tmp}/${rightFile}")
-            f2.write(rightData.getBytes("utf-8"))
-            f1.close()
-            f2.close()
+              import IOUtils._
 
+              s"${tmpDir}/${ToolCall.FileNameLeft}".writeALL(leftData)
+              s"${tmpDir}/${ToolCall.FileNameRight}".writeALL(rightData)
 
-            val proc = ToolCall("G:\\appli\\manual\\WinMerge\\winmergeu.exe",new File(tmp)).call()
-        }
-      }
-      contents += menu
-      //override val menus = collection.mutable.Seq( menu )
-    }
+              val proc = ToolCall(windiffPath,new File(tmpDir)).call()
+          }//reactions
+        }//val menu
+        contents += menu
+      }//foreach
+    }//MenuBar
 
     /*
     val leftTextPane = new MyTextPane()
@@ -111,7 +140,7 @@ object MainUI extends SimpleSwingApplication{
     val rightTextPane = new MyJTextPane()
 
 
-    leftTextPane.setMinimumSize(new Dimension(200, 0))
+    leftTextPane.setMinimumSize(new Dimension(150, 200))
 
 
     val splitPane =new SplitPane(Orientation.Vertical,Component wrap leftTextPane,Component wrap rightTextPane)

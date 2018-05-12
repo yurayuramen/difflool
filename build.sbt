@@ -12,3 +12,7 @@ lazy val root = (project in file(".")).
   )
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-swing" % "2.0.3"
+
+libraryDependencies += "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
+
+enablePlugins(JavaAppPackaging)
