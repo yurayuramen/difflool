@@ -15,15 +15,13 @@ import scala.swing.event._
 import scala.swing.{Component, Dimension, Frame, MainFrame, Menu, MenuBar, Orientation, SimpleSwingApplication, SplitPane, TextPane}
 
 object MainUI extends SimpleSwingApplication{
-
-  val argNameTempDir = ArgParser.ArgNameItem("--temp-dir","-t","")
-  val argNameWindiff = ArgParser.ArgNameItem("--win-merge","-w","")
-  val argNameEncoding = ArgParser.ArgNameItem("--source-encoding","-e","")
-
   import ArgParser._
 
-  var args:Args = null
+  val argNameTempDir = ArgNameItem("--temp-dir","-t")()
+  val argNameWindiff = ArgNameItem("--win-merge","-w")()
+  val argNameEncoding = ArgNameItem("--source-encoding","-e")()
 
+  var args:Args = null
 
   override def startup(params: Array[String]): Unit = {
 

@@ -3,15 +3,8 @@ package util
 
 object ArgParser{
 
-  object ArgNameItem{
 
-    def apply(fullname:String,shortname:String,desc:String="",hasValue:Boolean=true)={
-      new ArgNameItem(Seq(fullname,shortname),desc,hasValue)
-    }
-
-  }
-
-  case class ArgNameItem(val names:Seq[String],val desc:String,val hasValue:Boolean)
+  case class ArgNameItem(val names:String*)(val desc:String="",val hasValue:Boolean=true)
   {
     def name=names(0)
 
