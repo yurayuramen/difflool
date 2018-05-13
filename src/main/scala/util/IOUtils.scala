@@ -1,6 +1,6 @@
 package util
 
-import java.io.{File, FileInputStream, FileOutputStream, StringWriter}
+import java.io.{File, FileOutputStream, StringWriter}
 import java.nio.charset.Charset
 
 import scala.io.Source
