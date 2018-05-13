@@ -1,6 +1,9 @@
 package internal
 
 import java.io.File
+
+import conf.ArgsDef
+
 import scala.sys.process.Process
 
 object ToolCall{
@@ -17,7 +20,7 @@ trait ToolCall{
   def filenameRight:String = ToolCall.FileNameRight
 
   def async():Process
-  def sync():String
+  def sync():(String,String)
 
 }
 
@@ -41,33 +44,53 @@ class ToolCallDefault(val toolPath:String,val tmpDir:File) extends ToolCall{
 
     import sys.process._
     import java.io.{ BufferedReader, InputStreamReader }
-    val buff=new StringBuilder()
+    val stdout=StringBuilder.newBuilder
+    val stderr=StringBuilder.newBuilder
 
     // ProcessIOの用意
     val pio = new ProcessIO(
       in => {},
       out => {
-        //charset がハードコード・・・
-        val reader = new BufferedReader(new InputStreamReader(out,"windows-31j"))
+        val reader = new BufferedReader(new InputStreamReader(out,ArgsDef.osDefaultChatset))
         def readLine(): Unit = {
           val line = reader.readLine()
           println(line) // ここに1行ずつで結果が来るから適当に処理する
-          buff ++= line
-          buff += '\n'
+          stdout ++= line
+          stdout += '\n'
           if(line != null) readLine()
         }
         readLine()
       },
-      err => {})
+      err => {
+        val reader = new BufferedReader(new InputStreamReader(err,ArgsDef.osDefaultChatset))
+        def readLine(): Unit = {
+          val line = reader.readLine()
+          println(line) // ここに1行ずつで結果が来るから適当に処理する
+          stderr ++= line
+          stderr += '\n'
+          if(line != null) readLine()
+        }
+        readLine()
+
+
+      })
 
     // runする時に引数に渡す
-    val process = s""""${toolPath}" "${fileLeft.getCanonicalPath}" "${fileRight.getCanonicalPath}"""".run(pio)
+
+    val toolPath2=
+    if(toolPath.contains(" "))
+      s""""${toolPath}""""
+    else
+      toolPath
+
+
+    val process = s"${toolPath2} ${fileLeft.getCanonicalPath} ${fileRight.getCanonicalPath}".run(pio)
 
     //Thread.sleep(3000)
 
     process.exitValue()
 
-    buff.toString()
+    stdout.toString() -> stderr.toString
 
     //println(s"exec:$toolPath ${fileLeft.getCanonicalPath} ${fileRight.getCanonicalPath} ")
 

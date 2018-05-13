@@ -11,39 +11,21 @@ import util.{ArgParser, IOUtils, using}
 
 import scala.io.Source
 import scala.swing.event._
-import scala.swing.{BoxPanel, Component, Dimension, EditorPane, Frame, MainFrame, Menu, MenuBar, Orientation, SimpleSwingApplication, SplitPane,TextArea}
+import scala.swing.{BoxPanel, Component, Dimension, EditorPane, Frame, MainFrame, Menu, MenuBar, Orientation, ScrollPane, SimpleSwingApplication, SplitPane, TextArea}
 
 object MainUI extends SimpleSwingApplication{
-  import ArgParser._
 
-  val argNameTempDir = ArgNameItem("--temp-dir","-t")()
-  val argNameWindiff = ArgNameItem("--win-merge","-w")()
-  val argNameEncoding = ArgNameItem("--source-encoding","-e")()
-  val argNameWinFc = ArgNameItem("--win-fc","-f")(hasValue = false)
-  val argNameDiff = ArgNameItem("--diff","-d")()
-
-  var args:Args = null
+  import conf.ArgsDef
+  import conf.ArgsDef._
 
   override def startup(params: Array[String]): Unit = {
 
-    this.args = new ArgParser(Seq(
-      argNameTempDir
-      ,argNameEncoding
-      ,argNameWindiff
-      ,argNameWinFc
-      ,argNameDiff
-    )).parse(params)
-
+    ArgsDef.init(params)
     super.startup(params)
-    /*
-    val t = top
-    if (t.size == new Dimension(0,0)) t.pack()
-    t.visible = true
-    */
   }
 
-  class FrameWithEditorPaneOnly(textData:String) extends scala.swing.Frame {
-    title = "frame"
+  class FrameWithEditorPaneOnly(textData:String,override val title:String="undefined") extends scala.swing.Frame {
+
     /*
     import scala.swing.BorderPanel
     import BorderPanel.Position
@@ -56,7 +38,7 @@ object MainUI extends SimpleSwingApplication{
     }
     */
     contents = new BoxPanel(Orientation.Vertical){
-      contents += new TextArea(textData)
+      contents += new ScrollPane(new TextArea(textData))
     }
     override def closeOperation() = dispose()
   }
@@ -152,7 +134,7 @@ object MainUI extends SimpleSwingApplication{
               stdoutEncoding match{
                 case Some(encoding)=>
 
-                  val stdout = ToolCall(cmd,new File(tmpDir)).sync()
+                  val (stdout,stderr) = ToolCall(cmd,new File(tmpDir)).sync()
                   println(s"stdout*****\n${stdout}\n***************")
 
                   val subWindow = new FrameWithEditorPaneOnly(stdout)
@@ -221,7 +203,16 @@ object MainUI extends SimpleSwingApplication{
 
             args.getValue(argNameWindiff).fold{
               //TODO winmergeが見つからない場合の挙動がやや雑
-              val stdout = ToolCall("fc",new File(tmpDir)).sync()
+
+              val cmd =
+              ArgsDef.os match{
+                case Windows=>
+                  "fc"
+                case _=>
+                  "diff"
+              }
+
+              val (stdout,stderr) = ToolCall(cmd,new File(tmpDir)).sync()
               println(s"stdout*****\n${stdout}\n***************")
               val subWindow = new FrameWithEditorPaneOnly(stdout)
               subWindow.open()
