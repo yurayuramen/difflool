@@ -9,10 +9,14 @@ object ArgsDef {
   import ArgParser._
 
   val argNameTempDir = ArgNameItem("--temp-dir","-t")()
-  val argNameWindiff = ArgNameItem("--win-merge","-w")()
+  val argNameTempRightFile = ArgNameItem("--temp-right","-tr")()
+  val argNameTempLeftFile = ArgNameItem("--temp-left","-tl")()
+  val argNameExecute = ArgNameItem("--exec","-x")()
   val argNameEncoding = ArgNameItem("--source-encoding","-e")()
-  val argNameWinFc = ArgNameItem("--win-fc","-f")(hasValue = false)
-  val argNameDiff = ArgNameItem("--diff","-d")(hasValue = false)
+  //val argNameWinFc = ArgNameItem("--win-fc","-f")(hasValue = false)
+  //val argNameDiff = ArgNameItem("--diff","-d")(hasValue = false)
+
+  //val osDefaultChatset = ""
 
   private[this] var _args:Args = null
 
@@ -22,10 +26,13 @@ object ArgsDef {
   {
     this._args = new ArgParser(Seq(
       argNameTempDir
+      ,argNameTempLeftFile
+      ,argNameTempRightFile
+      ,argNameExecute
       ,argNameEncoding
-      ,argNameWindiff
-      ,argNameWinFc
-      ,argNameDiff
+      //,argNameWindiff
+      //,argNameWinFc
+      //,argNameDiff
     )).parse(params)
 
   }

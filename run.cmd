@@ -1,2 +1,2 @@
 REM sbt stage
-./target/universal/stage/bin/main-ui.bat -t tmp -e utf8 -w G:\appli\manual\WinMerge\WinMergeU.exe
+target\universal\stage\bin\difflool.bat -t tmp -x G:\appli\manual\WinMerge\WinMergeU.exe

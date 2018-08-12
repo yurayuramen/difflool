@@ -3,13 +3,14 @@ package ui
 
 import java.awt.datatransfer.DataFlavor
 import java.io.File
+import java.nio.charset.Charset
 
 import internal.ToolCall
 import javax.swing.TransferHandler.TransferSupport
-import javax.swing.{JTextPane, TransferHandler}
-import util.{ArgParser, IOUtils, using}
+import javax.swing.{JTextArea, JTextPane, TransferHandler}
+import util._
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 import scala.swing.event._
 import scala.swing.{BoxPanel, Component, Dimension, EditorPane, Frame, MainFrame, Menu, MenuBar, Orientation, ScrollPane, SimpleSwingApplication, SplitPane, TextArea}
 
@@ -37,8 +38,11 @@ object MainUI extends SimpleSwingApplication{
       add(textArea, Position.Center)
     }
     */
+    import java.awt.Font
     contents = new BoxPanel(Orientation.Vertical){
-      contents += new ScrollPane(new TextArea(textData))
+      val textArea = new TextArea(textData)
+      textArea.peer.setFont(new Font("Arial", Font.PLAIN, 12))
+      contents += new ScrollPane(textArea)
     }
     override def closeOperation() = dispose()
   }
@@ -78,10 +82,14 @@ object MainUI extends SimpleSwingApplication{
           val textPane = support.getComponent().asInstanceOf[JTextPane]
 
           val file = any.asInstanceOf[java.util.List[File]].asScala(0)
-          if(file.isFile)
+
+
+
+          if(file.isFile && !ArchiveTypes.defaultExtensions.exists{case(exten,_)=> file.getName.endsWith(s".${exten}") })
           {
             val enc = args.getValueOrElse(argNameEncoding,"utf-8")
-            textPane.setText(Source.fromFile(file,enc).getLines().mkString("\n"))
+            import IOUtils._
+            textPane.setText(file.readALLString(Charset.forName(enc)))//Source.fromFile(file,enc).getLines().mkString("\n"))
           }
           else{
             textPane.setText(file.getCanonicalPath)
@@ -114,118 +122,67 @@ object MainUI extends SimpleSwingApplication{
     title = "ファイル比較ツール"
     minimumSize = new Dimension(400,200)
 
-    def buildMenu(title:String,cmd: String,stdoutEncoding:Option[String]=None)={
-        new Menu(title){
-          listenTo(mouse.clicks)
-          reactions += {
-            case e: MouseClicked =>
-
-              val leftData = leftTextPane.getText
-              val rightData = rightTextPane.getText
-
-              val tmpDir = args(argNameTempDir)
-
-              import IOUtils._
-
-              s"${tmpDir}/${ToolCall.FileNameLeft}".writeALL(leftData)
-              s"${tmpDir}/${ToolCall.FileNameRight}".writeALL(rightData)
-
-
-              stdoutEncoding match{
-                case Some(encoding)=>
-
-                  val (stdout,stderr) = ToolCall(cmd,new File(tmpDir)).sync()
-                  println(s"stdout*****\n${stdout}\n***************")
-
-                  val subWindow = new FrameWithEditorPaneOnly(stdout)
-                  subWindow.open()
-
-                case _=>
-                  val proc = ToolCall(cmd,new File(tmpDir)).async()
-              }
-          }//reactions
-        }
-        //contents += menu
-    }
-
     menuBar = new MenuBar{
 
-      val menuWinMerge=
-      args.getValue(argNameWindiff).map{cmd=>
-        buildMenu("winmerge",cmd)
+      val menuFileDiff = new Menu("file-diff") {
+        listenTo(mouse.clicks)
+        reactions += {
+          case e:MouseClicked =>
+            val leftData = leftTextPane.getText
+            val rightData = rightTextPane.getText
+
+            val tmpDir = args(argNameTempDir)
+
+            val leftFile = new File(s"${tmpDir}/${args.getValueOrElse(argNameTempLeftFile,"left.txt")}")
+            val rightFile = new File(s"${tmpDir}/${args.getValueOrElse(argNameTempRightFile,"right.txt")}")
+
+            import IOUtils._
+            leftFile.writeALL(leftData)
+            rightFile.writeALL(rightData)
+
+            args.getValue(argNameTempDir).foreach{tmpDir=>
+
+              args.getValue(argNameExecute).foreach{execute=>
+                ToolCall(execute,leftFile,rightFile).async()
+              }
+
+            }
+
+        }
       }
-
-      val menuWinFc:Option[Menu]=
-      if(args.exists(argNameWinFc))
-        Some(buildMenu("win-fc","fc",Some("windows-31j")))
-      else
-        None
-
-      val menuDiff:Option[Menu]=
-        if(args.exists(argNameDiff))
-          Some(buildMenu("diff","diff",Some("utf8")))
-        else
-          None
 
       val menuDirDiff = new Menu("dir-diff"){
         listenTo(mouse.clicks)
         reactions += {
           case e: MouseClicked =>
-
-            def listFiles(current:File,list:Seq[File]=Nil):Seq[File]={
-              if(current.isFile)
-                list :+ current
-              else{
-                list ++ current.listFiles().flatMap{file=>
-                  listFiles(file)
-                }
-              }
-            }
-
             val left = leftTextPane.getText.split("\r\n|\n")(0).trim
             val right = rightTextPane.getText.split("\r\n|\n")(0).trim
-
             val leftRootFile = new File(left)
             val rightRootFile = new File(right)
 
-            val leftRootPath = leftRootFile.getCanonicalPath
-            val rightRootPath = rightRootFile.getCanonicalPath
+            val text = DiffUtilsWrapper.diff(leftRootFile,rightRootFile)
+            new FrameWithEditorPaneOnly(textData=text).open()
+            args.getValue(argNameTempDir).foreach{tmpDir=>
 
-            val leftData = listFiles(leftRootFile).map{_.getCanonicalPath.substring(leftRootPath.length)}.sortBy{v=>v}.mkString("\n")
-            val rightData = listFiles(rightRootFile).map(_.getCanonicalPath.substring(rightRootPath.length)).sortBy{v=>v}.mkString("\n")
+              val listLeft = DiffUtilsWrapper.format(leftRootFile)
+              val listRight = DiffUtilsWrapper.format(rightRootFile)
+              val leftFile = new File(s"${tmpDir}/${args.getValueOrElse(argNameTempLeftFile,"left.txt")}")
+              val rightFile = new File(s"${tmpDir}/${args.getValueOrElse(argNameTempRightFile,"right.txt")}")
 
-            import IOUtils._
-            val tmpDir = args(argNameTempDir)
+              import IOUtils._
+              leftFile.writeALL(listLeft.mkString("\n"))
+              rightFile.writeALL(listRight.mkString("\n"))
 
-            s"${tmpDir}/${ToolCall.FileNameLeft}".writeALL(leftData)
-            s"${tmpDir}/${ToolCall.FileNameRight}".writeALL(rightData)
+              args.getValue(argNameExecute).foreach{execute=>
 
-
-            args.getValue(argNameWindiff).fold{
-              //TODO winmergeが見つからない場合の挙動がやや雑
-
-              val cmd =
-              ArgsDef.os match{
-                case Windows=>
-                  "fc"
-                case _=>
-                  "diff"
+                ToolCall(execute,leftFile,rightFile).async()
               }
-
-              val (stdout,stderr) = ToolCall(cmd,new File(tmpDir)).sync()
-              println(s"stdout*****\n${stdout}\n***************")
-              val subWindow = new FrameWithEditorPaneOnly(stdout)
-              subWindow.open()
-
-            }{winMerge=>
-              ToolCall(winMerge,new File(tmpDir)).async()
             }
-
-
         }
       }
 
-      contents ++= Seq(menuWinMerge , menuWinFc, menuDiff).flatten :+ menuDirDiff
+      contents += menuFileDiff
+      contents += menuDirDiff
 
     }//MenuBar
 

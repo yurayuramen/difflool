@@ -15,4 +15,6 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-swing" % "2.0.3"
 
 libraryDependencies += "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
 
+libraryDependencies += "org.apache.commons" % "commons-compress" % "1.17"
+
 enablePlugins(JavaAppPackaging)

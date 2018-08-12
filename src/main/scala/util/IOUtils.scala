@@ -1,45 +1,66 @@
 package util
 
-import java.io.{File, FileOutputStream, StringWriter}
+import java.io.{File, FileInputStream, FileOutputStream, StringWriter}
 import java.nio.charset.Charset
+import java.nio.file.Files
+import java.security.MessageDigest
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 
 object IOUtils {
 
   val CharsetUTF8 = Charset.forName("utf-8")
 
-  implicit class FileExt(file:File){
+  case class FileTooLargeException(msg:String) extends RuntimeException(msg)
+
+  implicit class FileExt(underlying:File){
+
     def writeALL(source:String,charset:Charset=CharsetUTF8): Unit = {
-      using(new FileOutputStream(file)) { os =>
-        os.write(source.getBytes(charset))
+      writeALL(source.getBytes(charset))
+    }
+
+    def writeALL(source:Array[Byte]): Unit = {
+      using(new FileOutputStream(underlying)) { os =>
+        os.write(source)
       }
     }
 
     def readALLString(charset:Charset=CharsetUTF8) ={
-      val writer=new StringWriter()
-      using(Source.fromFile(file,charset.displayName())){source=>
-        val iterator = source.iter
-        while(iterator.hasNext){
-          writer.write(iterator.next())
-        }
-        writer.toString
-      }
-      /*
-      val fileSize = file.length().toInt
-      using(new FileInputStream(file)) { is =>
-        val array = Array.fill[Byte](fileSize)(0)
-        is.read(array)
-        new String(array,charset)
-      }
-      */
+      new String(readALLBytes(),charset)
+    }
+
+    def readALLString()(implicit codec:Codec) ={
+      new String(readALLBytes(),codec.charSet)
+    }
+
+    def readALLBytes():Array[Byte]={
+      Files.readAllBytes(underlying.toPath)
     }
 
   }
 
-  implicit class StringExt(file:String){
-    def writeALL(source:String,charset:Charset=CharsetUTF8): Unit = new File(file).writeALL(source,charset)
-    def readALLString(charset:Charset=CharsetUTF8) =new File(file).readALLString(charset)
+  implicit class StringExt(underlying:String){
+    def writeALL(source:Array[Byte]): Unit = new File(underlying).writeALL(source)
+    def writeALL(source:String,charset:Charset=CharsetUTF8): Unit = new File(underlying).writeALL(source,charset)
+    def readALLString(charset:Charset=CharsetUTF8) =new File(underlying).readALLString(charset)
   }
 
+  /*
+  object CheckSumTypes{
+
+
+    trait Checksum{
+      def build(source:Array[Byte])
+    }
+    case object MD5Sum extends Checksum{
+      def build(source:Array[Byte])={
+      }
+    }
+
+  }
+
+  def checksum(): Unit ={
+
+  }
+  */
 }
